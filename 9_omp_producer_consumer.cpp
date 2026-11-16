@@ -9,29 +9,50 @@ using namespace std;
 #define N 10        // items to produce
 
 int main() {
-    int buffer[SIZE], count = 0, in = 0, out = 0;
+    int items[N];
     srand(time(0));
+    for (int i = 0; i < N; i++) items[i] = rand() % 100;   // same items for both versions
 
+    // ---------- Sequential ----------
+    cout << "--- Sequential ---" << endl;
+    int buffer[SIZE], count = 0, in = 0, out = 0;
+    double start = omp_get_wtime();
+    for (int i = 0; i < N; i++) {
+        buffer[in] = items[i];                 // produce
+        in = (in + 1) % SIZE;
+        count++;
+        cout << "Produced: " << items[i] << endl;
+
+        int item = buffer[out];                // consume
+        out = (out + 1) % SIZE;
+        count--;
+        cout << "Consumed: " << item << endl;
+    }
+    double seq_time = omp_get_wtime() - start;
+
+    // ---------- Parallel ----------
+    cout << "--- Parallel ---" << endl;
+    count = 0; in = 0; out = 0;
+    start = omp_get_wtime();
     #pragma omp parallel sections num_threads(2)
     {
         #pragma omp section   // Producer
-        for (int i = 1; i <= N; i++) {
-            int item = rand() % 100;      // random item
+        for (int i = 0; i < N; i++) {
             bool done = false;
             while (!done) {
                 #pragma omp critical
                 if (count < SIZE) {
-                    buffer[in] = item;
+                    buffer[in] = items[i];
                     in = (in + 1) % SIZE;
                     count++;
-                    cout << "Produced: " << item << endl;
+                    cout << "Produced: " << items[i] << endl;
                     done = true;
                 }
             }
         }
 
         #pragma omp section   // Consumer
-        for (int i = 1; i <= N; i++) {
+        for (int i = 0; i < N; i++) {
             bool done = false;
             while (!done) {
                 #pragma omp critical
@@ -45,5 +66,9 @@ int main() {
             }
         }
     }
+    double par_time = omp_get_wtime() - start;
+
+    cout << "\nSequential time: " << seq_time << " s" << endl;
+    cout << "Parallel time:   " << par_time << " s" << endl;
     return 0;
 }

@@ -1,5 +1,6 @@
 // Compile: g++ -fopenmp 2_omp_largest.cpp -o largest
 #include <iostream>
+#include <vector>
 #include <cstdlib>
 #include <ctime>
 #include <omp.h>
@@ -9,21 +10,34 @@ int main() {
     int n;
     cout << "Enter number of elements: ";
     cin >> n;
-    int a[n];
+    vector<int> a(n);
 
     srand(time(0));
-    cout << "Array: ";
-    for (int i = 0; i < n; i++) {
-        a[i] = rand() % 100;
-        cout << a[i] << " ";
+    for (int i = 0; i < n; i++) a[i] = rand() % 100000;
+    if (n <= 20) {                       // print only small arrays
+        cout << "Array: ";
+        for (int i = 0; i < n; i++) cout << a[i] << " ";
+        cout << endl;
     }
-    cout << endl;
 
-    int mx = a[0];
-    #pragma omp parallel for reduction(max:mx)
+    // ---------- Sequential ----------
+    double start = omp_get_wtime();
+    int seq_max = a[0];
     for (int i = 0; i < n; i++)
-        if (a[i] > mx) mx = a[i];
+        if (a[i] > seq_max) seq_max = a[i];
+    double seq_time = omp_get_wtime() - start;
 
-    cout << "Largest element = " << mx << endl;
+    // ---------- Parallel ----------
+    start = omp_get_wtime();
+    int par_max = a[0];
+    #pragma omp parallel for reduction(max:par_max)
+    for (int i = 0; i < n; i++)
+        if (a[i] > par_max) par_max = a[i];
+    double par_time = omp_get_wtime() - start;
+
+    cout << "Sequential largest = " << seq_max << endl;
+    cout << "Parallel largest   = " << par_max << endl;
+    cout << "\nSequential time: " << seq_time << " s" << endl;
+    cout << "Parallel time:   " << par_time << " s" << endl;
     return 0;
 }

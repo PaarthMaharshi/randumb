@@ -1,5 +1,6 @@
 // Compile: g++ -fopenmp 10_omp_matrix_mult.cpp -o matmul
 #include <iostream>
+#include <vector>
 #include <cstdlib>
 #include <ctime>
 #include <omp.h>
@@ -9,7 +10,8 @@ int main() {
     int n;
     cout << "Enter size of matrix: ";
     cin >> n;
-    int A[n][n], B[n][n], C[n][n];
+    vector<vector<int>> A(n, vector<int>(n)), B(n, vector<int>(n)),
+                        S(n, vector<int>(n)), P(n, vector<int>(n));
 
     srand(time(0));
     for (int i = 0; i < n; i++)
@@ -18,29 +20,38 @@ int main() {
             B[i][j] = rand() % 10;
         }
 
-    cout << "Matrix A:\n";
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) cout << A[i][j] << " ";
-        cout << endl;
-    }
-    cout << "Matrix B:\n";
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) cout << B[i][j] << " ";
-        cout << endl;
-    }
+    // ---------- Sequential ----------
+    double start = omp_get_wtime();
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++) {
+            S[i][j] = 0;
+            for (int k = 0; k < n; k++)
+                S[i][j] += A[i][k] * B[k][j];
+        }
+    double seq_time = omp_get_wtime() - start;
 
+    // ---------- Parallel ----------
+    start = omp_get_wtime();
     #pragma omp parallel for
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++) {
-            C[i][j] = 0;
+            P[i][j] = 0;
             for (int k = 0; k < n; k++)
-                C[i][j] += A[i][k] * B[k][j];
+                P[i][j] += A[i][k] * B[k][j];
         }
+    double par_time = omp_get_wtime() - start;
 
-    cout << "Result:\n";
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) cout << C[i][j] << " ";
-        cout << endl;
+    if (n <= 5) {                        // print only small matrices
+        cout << "Matrix A:\n";
+        for (auto &r : A) { for (int x : r) cout << x << " "; cout << endl; }
+        cout << "Matrix B:\n";
+        for (auto &r : B) { for (int x : r) cout << x << " "; cout << endl; }
+        cout << "Result:\n";
+        for (auto &r : P) { for (int x : r) cout << x << " "; cout << endl; }
     }
+    cout << "Sequential and parallel results " << (S == P ? "match" : "DO NOT match") << endl;
+
+    cout << "\nSequential time: " << seq_time << " s" << endl;
+    cout << "Parallel time:   " << par_time << " s" << endl;
     return 0;
 }
